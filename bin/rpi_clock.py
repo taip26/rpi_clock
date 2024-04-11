@@ -20,7 +20,7 @@ count_down = 0
 flag_display_normal = False
 str_condition = "No condition yet"
 str_temp = "No temperature yet"
-str_img = "No img"
+# str_img = "No img"
 
 # ----------------------------------------------------------
 # Miscellaneous constants
@@ -280,12 +280,11 @@ def get_refreshed_data(arg_url):
             str_hr = str[index_T+1:index_T+3]
             curr_time = time.strftime("%H")
             if curr_time == str_hr:
-                print(str)
                 temp = period['temperature']
                 if parms.TEMP_SUFFIX == "C":
                     temp = format((int(temp)-32)*5/9, ".1f")
                 condition = period['shortForecast']
-                img = period['icon']
+                # img = period['icon']
                 break
 
         if parms.FLAG_TRACING:
@@ -300,14 +299,16 @@ def get_refreshed_data(arg_url):
         parms.logger.debug("get_refreshed_data: weather access success")
         msg = f"get_refreshed_data: Data for display: temp={temp}, condition={condition}"
         parms.logger.debug(msg)
-    return True, temp, condition, img
+    # return True, temp, condition, img
+    return True, temp, condition
 
 def get_display_data():
     """
     Get date, time, farenheit-temperature, celsius-temperature, and general condition
     if it is time to do so - governed by count_down.
     """
-    global count_down, flag_display_normal, str_condition, str_temp, str_img
+    # global count_down, flag_display_normal, str_condition, str_temp, str_img
+    global count_down, flag_display_normal, str_condition, str_temp
     FULL_URL = NWS_URL + parms.LAT_LONG
     if parms.FLAG_TRACING:
         msg = f"get_display_data: begin, URL={FULL_URL}"
@@ -321,7 +322,8 @@ def get_display_data():
         # Reset count_down to start value
         count_down = parms.COUNT_START
         # Try to fetch current weather: temperature & general condition
-        flag_display_normal, str_temp, str_condition, str_img = get_refreshed_data(FULL_URL)
+        # flag_display_normal, str_temp, str_condition, str_img = get_refreshed_data(FULL_URL)
+        flag_display_normal, str_temp, str_condition = get_refreshed_data(FULL_URL)
         if not flag_display_normal:
             count_down = 0 # force retry
 
@@ -336,7 +338,8 @@ def get_display_data():
         parms.logger.debug(msg)
 
     # Return strings for Tk display
-    return(str_date, str_time, str_temp, str_condition, str_img)
+    # return(str_date, str_time, str_temp, str_condition, str_img)
+    return(str_date, str_time, str_temp, str_condition)
 
 def display_main_procedure():
     """
@@ -345,10 +348,12 @@ def display_main_procedure():
     Update display as needed.
     Then, reschedule myself SLEEP_TIME_MSEC milliseconds into the future.
     """
-    global flag_display_normal, str_condition, str_temp, str_img
+    # global flag_display_normal, str_condition, str_temp, str_img
+    global flag_display_normal, str_condition, str_temp
     if parms.FLAG_TRACING:
         parms.logger.debug("display_main_procedure begin")
-    (str_date, str_time, str_temp, str_condition, str_img) = get_display_data()
+    # (str_date, str_time, str_temp, str_condition, str_img) = get_display_data()
+    (str_date, str_time, str_temp, str_condition) = get_display_data()
     display_date.config(text=str_date)
     display_time.config(text=str_time)
     if flag_display_normal:
@@ -360,7 +365,7 @@ def display_main_procedure():
         display_cur_cond.config(fg=parms.FG_COLOR_ALARM)
         display_cur_temp.config(text=str_temp)
     display_cur_cond.config(text=str_condition)
-    display_cur_img.config(image=str_img)
+    # display_cur_img.config(image=str_img)
     if parms.FLAG_TRACING:
         parms.logger.debug("display_main_procedure going back to sleep")
     tk_root.after(parms.SLEEP_TIME_MSEC, display_main_procedure)
@@ -429,8 +434,8 @@ display_cur_cond = Label(tk_root, font=(FONT_NAME, FONT_SIZE, FONT_STYLE), \
                          fg=parms.FG_COLOR_NORMAL, bg=parms.BG_COLOR_ROOT)
 display_cur_cond.pack()
 
-display_cur_img = Label(tk_root)
-display_cur_img.pack()
+# display_cur_img = Label(tk_root)
+# display_cur_img.pack()
 
 display_spacer2 = Label(tk_root, font=(FONT_NAME, SPACER_SIZE, FONT_STYLE), \
                         fg=parms.FG_COLOR_NORMAL, bg=parms.BG_COLOR_ROOT)
