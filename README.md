@@ -1,3 +1,6 @@
+This Raspberry Pi Clock & Weather display was adapted from _______, but was changed to use the 
+weather API from the National Weather Service instead of OpenWeatherMap
+
 See HISTORY.txt file for update history.
 
 This git project constitutes a Raspberry Pi Clock & Weather display (rpi_clock), based on https://github.com/goodtft/LCD-show and the Quimat 3.5" TFT Touch Screen with a 320x480 resolution and it uses the Open Weather Map API (https://openweathermap.org/api).

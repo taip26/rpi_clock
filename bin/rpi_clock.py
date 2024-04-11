@@ -20,12 +20,14 @@ count_down = 0
 flag_display_normal = False
 str_condition = "No condition yet"
 str_temp = "No temperature yet"
+str_img = "No img"
 
 # ----------------------------------------------------------
 # Miscellaneous constants
 URL_LEFT = "https://api.openweathermap.org/data/2.5/weather?APPID="
 URL_MIDDLE_1 = "&"
 URL_MIDDLE_2 = "&units="
+NWS_URL = "https://api.weather.gov/points/"
 
 # ----------------------------------------------------------
 # Video display constants
@@ -77,8 +79,8 @@ def get_config_color(arg_config, arg_key):
         parm_value = arg_config.get(parms.MYNAME, arg_key)
     except Exception as err:
         oops(f"get_config_color: Trouble with config file key {arg_key}, reason: {repr(err)}")
-    if not lookup_color(parm_value):
-        oops(f"get_config_color: Config file key {arg_key} value is not a supported color: {parm_value}")
+    # if not lookup_color(parm_value):
+    #     oops(f"get_config_color: Config file key {arg_key} value is not a supported color: {parm_value}")
     msg = f"get_config_color: {arg_key} = {parm_value}"
     parms.logger.info(msg)
     return parm_value
@@ -151,13 +153,11 @@ def get_config_all(arg_config_path):
         parms.FG_COLOR_ALARM = get_config_color(config, "FG_COLOR_ALARM")
         parms.FORMAT_DATE = get_config_string(config, "FORMAT_DATE")
         parms.FORMAT_TIME = get_config_string(config, "FORMAT_TIME")
-        parms.LOCATION = get_config_string(config, "LOCATION")
         parms.TEMP_UNITS = get_config_string(config, "TEMP_UNITS")
         result, parms.TEMP_SUFFIX = validate_temp_units(parms.TEMP_UNITS)
         if not result:
             oops("TEMP_UNITS invalid (must be metric, imperial, or kelvin)")
         parms.FLAG_WINDOWED = get_config_boolean(config, "FLAG_WINDOWED")
-        parms.OWM_API_KEY = get_config_string(config, "OWM_API_KEY")
         parms.COUNT_START = get_config_int(config, "COUNT_START")
         if parms.COUNT_START < 10:
             oops("COUNT_START invalid (< 10)")
@@ -167,6 +167,7 @@ def get_config_all(arg_config_path):
         parms.SLEEP_TIME_MSEC = get_config_int(config, "SLEEP_TIME_MSEC")
         if parms.SLEEP_TIME_MSEC < 10:
             oops("SLEEP_TIME_MSEC invalid (< 10)")
+        parms.LAT_LONG = get_config_string(config, "LAT_LONG")
     except Exception as err:
         oops(f"get_config: Trouble with config file {arg_config_path}, reason: {repr(err)}")
     parms.logger.info("get_config_all: done")
@@ -235,12 +236,21 @@ def get_refreshed_data(arg_url):
     * Missing JSON element --> False, code value, descriptive message
     * Unrecognizable message --> False, "Response Rubbish", "See Log"
     '''
+    import requests
+
+    # url = input('Enter a URL to send a get request: ')
+    # head = {'Accept' : 'application/json'}
+    # res = requests.get(url, headers=head)
+    # obj = res.json()
+    # message = obj[1]['body']
+    # print(f'Message: {message}')
     response = ""
     try:
         if parms.FLAG_TRACING:
             msg = "get_refreshed_data: Sending: " + arg_url
             parms.logger.debug(msg)
         response = requests.get(arg_url, timeout=parms.REQUEST_TIMEOUT_SEC, verify=True)
+        # print(response.text)
         if parms.FLAG_TRACING:
             msg = f"get_refreshed_data: Network response: {response}"
             parms.logger.debug(msg)
@@ -258,6 +268,26 @@ def get_refreshed_data(arg_url):
         parms.logger.debug(msg)
     try:
         parsed_json = response.json()
+        blacksburg_json = requests.get(parsed_json['id']).json()
+        forecast_hourly_link = blacksburg_json['properties']['forecastHourly']
+        forecast_hourly = requests.get(forecast_hourly_link).json()
+        periods_json = forecast_hourly['properties']['periods']
+
+        for period in periods_json:
+            str = period["startTime"]
+            # find period with current start time
+            index_T = str.find("T")
+            str_hr = str[index_T+1:index_T+3]
+            curr_time = time.strftime("%H")
+            if curr_time == str_hr:
+                print(str)
+                temp = period['temperature']
+                if parms.TEMP_SUFFIX == "C":
+                    temp = format((int(temp)-32)*5/9, ".1f")
+                condition = period['shortForecast']
+                img = period['icon']
+                break
+
         if parms.FLAG_TRACING:
             msg = f"get_refreshed_data: Received parsed JSON: {parsed_json}"
             parms.logger.debug(msg)
@@ -265,42 +295,20 @@ def get_refreshed_data(arg_url):
         parms.logger.error("get_refreshed_data: Oh-oh, the last response.json() failed")
         return False, "JSON Parse Failed", " "
 
-    # Fetch data we are interested in.
-    try:
-        main = parsed_json["main"]
-        temp = main["temp"]
-        weather = parsed_json["weather"]
-        condition = weather[0]["description"]
-
-    except:
-        # Missing expected JSON elements
-        try:
-            str_code = parsed_json["cod"]
-            str_msg = parsed_json["message"]
-            # Got a standard error response message
-            msg = f"Oh-oh, in the last response, str_code={str_code}, str_msg={str_msg}"
-            parms.logger.error(msg)
-            return False, str_code, str_msg
-        except:
-            msg = "Oh-oh, in the last response, 'cod' and/or 'message' is missing"
-            parms.logger.error(msg)
-            return False, "Response Rubbish", "See Log"
-
     # Got the data that was expected
     if parms.FLAG_TRACING:
         parms.logger.debug("get_refreshed_data: weather access success")
         msg = f"get_refreshed_data: Data for display: temp={temp}, condition={condition}"
         parms.logger.debug(msg)
-    return True, temp, condition
+    return True, temp, condition, img
 
 def get_display_data():
     """
     Get date, time, farenheit-temperature, celsius-temperature, and general condition
     if it is time to do so - governed by count_down.
     """
-    global count_down, flag_display_normal, str_condition, str_temp
-    FULL_URL = URL_LEFT + parms.OWM_API_KEY + URL_MIDDLE_1 \
-             + parms.LOCATION + URL_MIDDLE_2 + parms.TEMP_UNITS
+    global count_down, flag_display_normal, str_condition, str_temp, str_img
+    FULL_URL = NWS_URL + parms.LAT_LONG
     if parms.FLAG_TRACING:
         msg = f"get_display_data: begin, URL={FULL_URL}"
         parms.logger.debug(msg)
@@ -313,7 +321,7 @@ def get_display_data():
         # Reset count_down to start value
         count_down = parms.COUNT_START
         # Try to fetch current weather: temperature & general condition
-        flag_display_normal, str_temp, str_condition = get_refreshed_data(FULL_URL)
+        flag_display_normal, str_temp, str_condition, str_img = get_refreshed_data(FULL_URL)
         if not flag_display_normal:
             count_down = 0 # force retry
 
@@ -328,7 +336,7 @@ def get_display_data():
         parms.logger.debug(msg)
 
     # Return strings for Tk display
-    return(str_date, str_time, str_temp, str_condition)
+    return(str_date, str_time, str_temp, str_condition, str_img)
 
 def display_main_procedure():
     """
@@ -337,10 +345,10 @@ def display_main_procedure():
     Update display as needed.
     Then, reschedule myself SLEEP_TIME_MSEC milliseconds into the future.
     """
-    global flag_display_normal, str_condition, str_temp
+    global flag_display_normal, str_condition, str_temp, str_img
     if parms.FLAG_TRACING:
         parms.logger.debug("display_main_procedure begin")
-    (str_date, str_time, str_temp, str_condition) = get_display_data()
+    (str_date, str_time, str_temp, str_condition, str_img) = get_display_data()
     display_date.config(text=str_date)
     display_time.config(text=str_time)
     if flag_display_normal:
@@ -352,6 +360,7 @@ def display_main_procedure():
         display_cur_cond.config(fg=parms.FG_COLOR_ALARM)
         display_cur_temp.config(text=str_temp)
     display_cur_cond.config(text=str_condition)
+    display_cur_img.config(image=str_img)
     if parms.FLAG_TRACING:
         parms.logger.debug("display_main_procedure going back to sleep")
     tk_root.after(parms.SLEEP_TIME_MSEC, display_main_procedure)
@@ -419,6 +428,9 @@ display_cur_temp.pack()
 display_cur_cond = Label(tk_root, font=(FONT_NAME, FONT_SIZE, FONT_STYLE), \
                          fg=parms.FG_COLOR_NORMAL, bg=parms.BG_COLOR_ROOT)
 display_cur_cond.pack()
+
+display_cur_img = Label(tk_root)
+display_cur_img.pack()
 
 display_spacer2 = Label(tk_root, font=(FONT_NAME, SPACER_SIZE, FONT_STYLE), \
                         fg=parms.FG_COLOR_NORMAL, bg=parms.BG_COLOR_ROOT)

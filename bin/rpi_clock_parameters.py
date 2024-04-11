@@ -23,6 +23,7 @@ class RpiClockParameters:
     FLAG_TRACING = False # Verbose tracing
     REQUEST_TIMEOUT_SEC = -1 # Timeout in seconds if URL server does not respond in time
     SLEEP_TIME_MSEC = -1 # The amount of time between URL contact attempts in milliseconds
+    LAT_LONG = ""
 
     # Name of project
     MYNAME = "rpi_clock"
