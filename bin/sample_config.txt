@@ -62,5 +62,6 @@ FLAG_TRACING = False
 # Timeout in seconds if URL server does not respond in time
 REQUEST_TIMEOUT_SEC = 60
 
-# Latitude and longitude of location (negative indicates S or W, no space after the comma)
+# Latitude and longitude of location 
+# (negative indicates S or W, no space after the comma)
 LAT_LONG = 37.2296,-80.4139
