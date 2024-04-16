@@ -1,4 +1,4 @@
 *.pyc
 *.tmp
 __pycache__
-
+*.cfg
