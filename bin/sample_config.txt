@@ -1,8 +1,7 @@
 [rpi_clock]
 
-# Temperature units: metric (Celsius), imperial (Farenheit), or Kelvin
-TEMP_UNITS = metric
-# TEMP_UNITS = imperial
+# Temperature units: metric (Celsius) or imperial (Farenheit)
+TEMP_UNITS = imperial
 
 # Date format is USA here:
 FORMAT_DATE = %%b %%d, %%Y
